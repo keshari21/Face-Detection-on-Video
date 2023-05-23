@@ -1,0 +1,43 @@
+the_Video = VideoReader('face detection on video\face.mp4');
+video_Frame = readFrame(the_Video);
+face_Detector = vision.CascadeObjectDetector();
+location_of_the_Face = step(face_Detector,video_Frame);
+
+ detected_Frame = insertShape(video_Frame,'Rectangle',location_of_the_Face);
+
+ rectangle_to_Points = bbox2points(location_of_the_Face(1,:));
+ feature_Points = detectMinEigenFeatures(rgb2gray(detected_Frame),'ROI',location_of_the_Face);
+ pointTracker = vision.PointTracker('MaxBidirectionalError', 2);
+
+ feature_Points = feature_Points.Location;
+ initialize(pointTracker,feature_Points,detected_Frame);
+
+ left=100;
+ bottom=100;
+ width=size(detected_Frame,2);
+ height = size(detected_Frame,1);
+ video_Player= vision.VideoPlayer('Position', [left bottom width height]);
+ previous_Points = feature_Points;
+
+ while hasFrame(the_Video)
+     video_Frame = readFrame(the_Video);
+     [feature_Points, isFound] = step(pointTracker,video_Frame);
+     new_Points = feature_Points(isFound,:);
+     old_Points = previous_Points(isFound,:);
+     if size(new_Points,1)>=2
+         [transformed_Rectangle,old_Points,new_Points]=....
+         estimateGeometricTransform(old_Points,new_Points,'similarity','MaxDistance',4);
+         rectangle_to_Points = transformPointsForward(transformed_Rectangle,rectangle_to_Points);
+         reshaped_Rectangle = reshape(rectangle_to_Points',1,[]);
+         detected_Frame = insertShape(video_Frame,'Polygon',reshaped_Rectangle,'LineWidth',2);
+         detected_Frame = insertMarker(detected_Frame,new_Points,'+','Color','white');
+         reshaped_Rectangle
+         previous_Points = new_Points;
+         setPoints(pointTracker,previous_Points);
+     end
+     step(video_Player,detected_Frame)
+ end
+
+ release(video_Player);
+
+
